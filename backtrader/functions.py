@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,6 +26,12 @@ import math
 
 from .linebuffer import LineActions
 from .utils.py3 import cmp, range
+
+
+# Generate a List equivalent which uses "is" for contains
+class List(list):
+    def __contains__(self, other):
+        return any(x.__hash__() == other.__hash__() for x in self)
 
 
 class Logic(LineActions):
@@ -199,9 +205,19 @@ class MultiLogic(Logic):
 
 
 class MultiLogicReduce(MultiLogic):
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
         super(MultiLogicReduce, self).__init__(*args)
-        self.flogic = functools.partial(functools.reduce, self.flogic)
+        if 'initializer' not in kwargs:
+            self.flogic = functools.partial(functools.reduce, self.flogic)
+        else:
+            self.flogic = functools.partial(functools.reduce, self.flogic,
+                                            initializer=kwargs['initializer'])
+
+
+class Reduce(MultiLogicReduce):
+    def __init__(self, flogic, *args, **kwargs):
+        self.flogic = flogic
+        super(Reduce, self).__init__(*args, **kwargs)
 
 
 # The _xxxlogic functions are defined at module scope to make them
@@ -232,3 +248,11 @@ class Min(MultiLogic):
 
 class Sum(MultiLogic):
     flogic = math.fsum
+
+
+class Any(MultiLogic):
+    flogic = any
+
+
+class All(MultiLogic):
+    flogic = all

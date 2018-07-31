@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -118,6 +118,13 @@ class PlotScheme(object):
         # Level of transparency to apply to bars/cancles (NOT USED)
         self.bartrans = 1.0
 
+        # Wether the candlesticks have to be filled or be transparent
+        self.barupfill = True
+        self.bardownfill = True
+
+        # Wether the candlesticks have to be filled or be transparent
+        self.fillalpha = 0.20
+
         # Wether to plot volume or not. Note: if the data in question has no
         # volume values, volume plotting will be skipped even if this is True
         self.volume = True
@@ -149,6 +156,15 @@ class PlotScheme(object):
         # Location of the legend for indicators (see matplotlib)
         self.legendindloc = 'upper left'
 
+        # Location of the legend for datafeeds (see matplotlib)
+        self.legenddataloc = 'upper left'
+
+        # Plot the last value of a line after the Object name
+        self.linevalues = True
+
+        # Plot a tag at the end of each line with the last value
+        self.valuetags = True
+
         # Default color for horizontal lines (see plotinfo.plothlines)
         self.hlinescolor = '0.66'  # shade of gray
         # Default style for horizontal lines
@@ -158,6 +174,12 @@ class PlotScheme(object):
 
         # Default color scheme: Tableau 10
         self.lcolors = tableau10
+
+        # strftime Format string for the display of ticks on the x axis
+        self.fmt_x_ticks = None
+
+        # strftime Format string for the display of data points values
+        self.fmt_x_data = None
 
     def color(self, idx):
         colidx = tab10_index[idx % len(tab10_index)]

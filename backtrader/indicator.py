@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,7 +25,8 @@ from __future__ import (absolute_import, division, print_function,
 from .utils.py3 import range, with_metaclass
 
 from .lineiterator import LineIterator, IndicatorBase
-from .lineseries import LineSeriesMaker
+from .lineseries import LineSeriesMaker, Lines
+from .metabase import AutoInfoClass
 
 
 class MetaIndicator(IndicatorBase.__class__):
@@ -33,14 +34,26 @@ class MetaIndicator(IndicatorBase.__class__):
     _indcol = dict()
 
     _icache = dict()
+    _icacheuse = False
 
     @classmethod
     def cleancache(cls):
         cls._icache = dict()
 
+    @classmethod
+    def usecache(cls, onoff):
+        cls._icacheuse = onoff
+
+    # Object cache deactivated on 2016-08-17. If the object is being used
+    # inside another object, the minperiod information carried over
+    # influences the first usage when being modified during the 2nd usage
+
     def __call__(cls, *args, **kwargs):
+        if not cls._icacheuse:
+            return super(MetaIndicator, cls).__call__(*args, **kwargs)
+
         # implement a cache to avoid duplicating lines actions
-        ckey = (cls, tuple(args), tuple(kwargs.items()))  # tuples are hashable
+        ckey = (cls, tuple(args), tuple(kwargs.items()))  # tuples hashable
         try:
             return cls._icache[ckey]
         except TypeError:  # something not hashable
@@ -63,41 +76,15 @@ class MetaIndicator(IndicatorBase.__class__):
             refattr = getattr(cls, cls._refname)
             refattr[name] = cls
 
-    def donew(cls, *args, **kwargs):
+        # Check if next and once have both been overridden
+        next_over = cls.next != IndicatorBase.next
+        once_over = cls.once != IndicatorBase.once
 
-        if IndicatorBase.next == cls.next:
-            # if next has not been overriden, there is no need for a
-            # "once" because the indicator is using indicator composition
-            # and line binding avoid calling the one step at a time "next"
-            cls.once = cls.once_empty
-        else:
-            # next overriden. Either once is from Indicator or
-            # also overriden -> do nothing
-            pass
-
-        if IndicatorBase.prenext == cls.prenext:
-            cls.preonce = cls.preonce_empty
-        else:
-            pass
-
-        _obj, args, kwargs = super(MetaIndicator, cls).donew(*args, **kwargs)
-
-        # If only 1 data was passed and it's multiline, put the 2nd
-        # and later lines in the datas array. This allows things like
-        # passing a "Stochastic" to a crossover indicator and it will
-        # automatically calculate the crossover of %k and %d
-        if False and len(_obj.datas) == 1:
-            if _obj.data.size():
-                r = range(1, _obj.data.size())
-            else:
-                r = range(0, _obj.data.lines.extrasize())
-
-            for l in r:
-                newdata = LineSeriesMaker(_obj.data.lines[l], slave=True)
-                _obj.datas.append(newdata)
-
-        # return the values
-        return _obj, args, kwargs
+        if next_over and not once_over:
+            # No -> need pointer movement to once simulation via next
+            cls.once = cls.once_via_next
+            cls.preonce = cls.preonce_via_prenext
+            cls.oncestart = cls.oncestart_via_nextstart
 
 
 class Indicator(with_metaclass(MetaIndicator, IndicatorBase)):
@@ -111,11 +98,8 @@ class Indicator(with_metaclass(MetaIndicator, IndicatorBase)):
         if len(self) < len(self._clock):
             self.lines.advance(size=size)
 
-    def preonce_empty(self, start, end):
-        return
-
-    def preonce(self, start, end):
-        # generic implementation
+    def preonce_via_prenext(self, start, end):
+        # generic implementation if prenext is overridden but preonce is not
         for i in range(start, end):
             for data in self.datas:
                 data.advance()
@@ -126,11 +110,21 @@ class Indicator(with_metaclass(MetaIndicator, IndicatorBase)):
             self.advance()
             self.prenext()
 
-    def once_empty(self, start, end):
-        return
+    def oncestart_via_nextstart(self, start, end):
+        # nextstart has been overriden, but oncestart has not and the code is
+        # here. call the overriden nextstart
+        for i in range(start, end):
+            for data in self.datas:
+                data.advance()
 
-    def once(self, start, end):
-        # generic implementation
+            for indicator in self._lineiterators[LineIterator.IndType]:
+                indicator.advance()
+
+            self.advance()
+            self.nextstart()
+
+    def once_via_next(self, start, end):
+        # Not overridden, next must be there ...
         for i in range(start, end):
             for data in self.datas:
                 data.advance()
@@ -140,3 +134,31 @@ class Indicator(with_metaclass(MetaIndicator, IndicatorBase)):
 
             self.advance()
             self.next()
+
+
+class MtLinePlotterIndicator(Indicator.__class__):
+    def donew(cls, *args, **kwargs):
+        lname = kwargs.pop('name')
+        name = cls.__name__
+
+        lines = getattr(cls, 'lines', Lines)
+        cls.lines = lines._derive(name, (lname,), 0, [])
+
+        plotlines = AutoInfoClass
+        newplotlines = dict()
+        newplotlines.setdefault(lname, dict())
+        cls.plotlines = plotlines._derive(name, newplotlines, [], recurse=True)
+
+        # Create the object and set the params in place
+        _obj, args, kwargs =  \
+            super(MtLinePlotterIndicator, cls).donew(*args, **kwargs)
+
+        _obj.owner = _obj.data.owner._clock
+        _obj.data.lines[0].addbinding(_obj.lines[0])
+
+        # Return the object and arguments to the chain
+        return _obj, args, kwargs
+
+
+class LinePlotterIndicator(with_metaclass(MtLinePlotterIndicator, Indicator)):
+    pass

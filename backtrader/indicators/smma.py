@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ class SmoothedMovingAverage(MovingAverageBase):
     Smoothing Moving Average used by Wilder in his 1978 book `New Concepts in
     Technical Trading`
 
-    Defined in his book originalyl as:
+    Defined in his book originally as:
 
       - new_value = (old_value * (period - 1) + new_data) / period
 

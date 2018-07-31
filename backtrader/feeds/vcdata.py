@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015,2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -346,20 +346,6 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
 
         self._mktoffdiff = self._mktoffset - self._mktoff1
 
-    def stop(self):
-        '''Stops and tells the store to stop'''
-        super(VCData, self).stop()
-        if self.q:
-            self.store._canceldirectdata(self.q)
-
-    def _setserie(self, serie):
-        # Accepts a serie (COM Object) to use in ping events
-        self._serie = serie
-
-    def _load(self):
-        if self._state == self._ST_NOTFOUND:
-            return False  # nothing can be done
-
         if self._state == self._ST_START:
             self.put_notification(self.DELAYED)
 
@@ -373,10 +359,27 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
 
             self._state = self._ST_FEEDING
 
+    def stop(self):
+        '''Stops and tells the store to stop'''
+        super(VCData, self).stop()
+        if self.q:
+            self.store._canceldirectdata(self.q)
+
+    def _setserie(self, serie):
+        # Accepts a serie (COM Object) to use in ping events
+        self._serie = serie
+
+    def haslivedata(self):
+        return self._laststatus == self.LIVE and self.q
+
+    def _load(self):
+        if self._state == self._ST_NOTFOUND:
+            return False  # nothing can be done
+
         while True:
             try:
                 # tmout <> 0 only if resampling/replaying, else no waking up
-                tmout = self.p.qcheck * bool(self.resampling)
+                tmout = self._qcheck * bool(self.resampling)
                 msg = self.q.get(timeout=tmout)
             except queue.Empty:
                 return None

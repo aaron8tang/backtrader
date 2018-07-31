@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,7 +30,8 @@ class Sizer(with_metaclass(MetaParams, object)):
     '''This is the base class for *Sizers*. Any *sizer* should subclass this
     and override the ``_getsizing`` method
 
-    Attributes:
+    Member Attribs:
+
       - ``strategy``: will be set by the strategy in which the sizer is working
 
         Gives access to the entire api of the strategy, for example if the

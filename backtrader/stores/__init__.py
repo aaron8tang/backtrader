@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,3 +33,11 @@ try:
     from .vcstore import VCStore
 except ImportError:
     pass  # The user may not have a module installed
+
+try:
+    from .oandastore import OandaStore
+except ImportError:
+    pass  # The user may not have a module installed
+
+
+from .vchartfile import VChartFile

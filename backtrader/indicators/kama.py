@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,9 +28,9 @@ class AdaptiveMovingAverage(MovingAverageBase):
     '''
     Defined by Perry Kaufman in his book `"Smarter Trading"`.
 
-    It is A Moving Average with a continuosly scaled smoothing factor by taking
-    into account market direction and volatility. The smoothing factor is
-    calculated from 2 ExponetialMovingAverages smoothing factors, a fast one
+    It is A Moving Average with a continuously scaled smoothing factor by
+    taking into account market direction and volatility. The smoothing factor
+    is calculated from 2 ExponetialMovingAverage smoothing factors, a fast one
     and slow one.
 
     If the market trends the value will tend to the fast ema smoothing

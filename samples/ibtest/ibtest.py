@@ -39,6 +39,13 @@ class TestStrategy(bt.Strategy):
         valid=None,
         cancel=0,
         donotsell=False,
+        stoptrail=False,
+        stoptraillimit=False,
+        trailamount=None,
+        trailpercent=None,
+        limitoffset=None,
+        oca=False,
+        bracket=False,
     )
 
     def __init__(self):
@@ -83,8 +90,10 @@ class TestStrategy(bt.Strategy):
 
     def next(self, frompre=False):
         txt = list()
-        txt.append('%04d' % len(self))
+        txt.append('Data0')
+        txt.append('%04d' % len(self.data0))
         dtfmt = '%Y-%m-%dT%H:%M:%S.%f'
+        txt.append('{}'.format(self.data.datetime[0]))
         txt.append('%s' % self.data.datetime.datetime(0).strftime(dtfmt))
         txt.append('{}'.format(self.data.open[0]))
         txt.append('{}'.format(self.data.high[0]))
@@ -95,10 +104,12 @@ class TestStrategy(bt.Strategy):
         txt.append('{}'.format(self.sma[0]))
         print(', '.join(txt))
 
-        if len(self.datas) > 1:
+        if len(self.datas) > 1 and len(self.data1):
             txt = list()
-            txt.append('%04d' % len(self))
+            txt.append('Data1')
+            txt.append('%04d' % len(self.data1))
             dtfmt = '%Y-%m-%dT%H:%M:%S.%f'
+            txt.append('{}'.format(self.data1.datetime[0]))
             txt.append('%s' % self.data1.datetime.datetime(0).strftime(dtfmt))
             txt.append('{}'.format(self.data1.open[0]))
             txt.append('{}'.format(self.data1.high[0]))
@@ -119,12 +130,59 @@ class TestStrategy(bt.Strategy):
             return
 
         if self.datastatus and not self.position and len(self.orderid) < 1:
+            exectype = self.p.exectype if not self.p.oca else bt.Order.Limit
+            close = self.data0.close[0]
+            price = round(close * 0.90, 2)
             self.order = self.buy(size=self.p.stake,
-                                  exectype=self.p.exectype,
-                                  price=round(self.data0.close[0] * 0.90, 2),
-                                  valid=self.p.valid)
+                                  exectype=exectype,
+                                  price=price,
+                                  valid=self.p.valid,
+                                  transmit=not self.p.bracket)
 
             self.orderid.append(self.order)
+
+            if self.p.bracket:
+                # low side
+                self.sell(size=self.p.stake,
+                          exectype=bt.Order.Stop,
+                          price=round(price * 0.90, 2),
+                          valid=self.p.valid,
+                          transmit=False,
+                          parent=self.order)
+
+                # high side
+                self.sell(size=self.p.stake,
+                          exectype=bt.Order.Limit,
+                          price=round(close * 1.10, 2),
+                          valid=self.p.valid,
+                          transmit=True,
+                          parent=self.order)
+
+            elif self.p.oca:
+                self.buy(size=self.p.stake,
+                         exectype=bt.Order.Limit,
+                         price=round(self.data0.close[0] * 0.80, 2),
+                         oco=self.order)
+
+            elif self.p.stoptrail:
+                self.sell(size=self.p.stake,
+                          exectype=bt.Order.StopTrail,
+                          # price=round(self.data0.close[0] * 0.90, 2),
+                          valid=self.p.valid,
+                          trailamount=self.p.trailamount,
+                          trailpercent=self.p.trailpercent)
+
+            elif self.p.stoptraillimit:
+                p = round(self.data0.close[0] - self.p.trailamount, 2)
+                # p = self.data0.close[0]
+                self.sell(size=self.p.stake,
+                          exectype=bt.Order.StopTrailLimit,
+                          price=p,
+                          plimit=p + self.p.limitoffset,
+                          valid=self.p.valid,
+                          trailamount=self.p.trailamount,
+                          trailpercent=self.p.trailpercent)
+
         elif self.position.size > 0 and not self.p.donotsell:
             if self.order is None:
                 self.order = self.sell(size=self.p.stake // 2,
@@ -175,12 +233,20 @@ def runstrategy():
         cerebro.setbroker(broker)
 
     timeframe = bt.TimeFrame.TFrame(args.timeframe)
+    # Manage data1 parameters
+    tf1 = args.timeframe1
+    tf1 = bt.TimeFrame.TFrame(tf1) if tf1 is not None else timeframe
+    cp1 = args.compression1
+    cp1 = cp1 if cp1 is not None else args.compression
+
     if args.resample or args.replay:
-        datatf = bt.TimeFrame.Ticks
-        datacomp = 1
+        datatf = datatf1 = bt.TimeFrame.Ticks
+        datacomp = datacomp1 = 1
     else:
         datatf = timeframe
         datacomp = args.compression
+        datatf1 = tf1
+        datacomp1 = cp1
 
     fromdate = None
     if args.fromdate:
@@ -208,7 +274,12 @@ def runstrategy():
 
     data1 = None
     if args.data1 is not None:
-        data1 = IBDataFactory(dataname=args.data1, **datakwargs)
+        if args.data1 != args.data0:
+            datakwargs['timeframe'] = datatf1
+            datakwargs['compression'] = datacomp1
+            data1 = IBDataFactory(dataname=args.data1, **datakwargs)
+        else:
+            data1 = data0
 
     rekwargs = dict(
         timeframe=timeframe, compression=args.compression,
@@ -219,16 +290,20 @@ def runstrategy():
     )
 
     if args.replay:
-        cerebro.replaydata(dataname=data0, **rekwargs)
+        cerebro.replaydata(data0, **rekwargs)
 
         if data1 is not None:
-            cerebro.replaydata(dataname=data1, **rekwargs)
+            rekwargs['timeframe'] = tf1
+            rekwargs['compression'] = cp1
+            cerebro.replaydata(data1, **rekwargs)
 
     elif args.resample:
-        cerebro.resampledata(dataname=data0, **rekwargs)
+        cerebro.resampledata(data0, **rekwargs)
 
         if data1 is not None:
-            cerebro.resampledata(dataname=data1, **rekwargs)
+            rekwargs['timeframe'] = tf1
+            rekwargs['compression'] = cp1
+            cerebro.resampledata(data1, **rekwargs)
 
     else:
         cerebro.adddata(data0)
@@ -248,7 +323,14 @@ def runstrategy():
                         stopafter=args.stopafter,
                         valid=valid,
                         cancel=args.cancel,
-                        donotsell=args.donotsell)
+                        donotsell=args.donotsell,
+                        stoptrail=args.stoptrail,
+                        stoptraillimit=args.traillimit,
+                        trailamount=args.trailamount,
+                        trailpercent=args.trailpercent,
+                        limitoffset=args.limitoffset,
+                        oca=args.oca,
+                        bracket=args.bracket)
 
     # Live data ... avoid long data accumulation by switching to "exactbars"
     cerebro.run(exactbars=args.exactbars)
@@ -382,6 +464,15 @@ def parse_args():
                         required=False, action='store',
                         help='Compression for Resample/Replay')
 
+    parser.add_argument('--timeframe1', default=None,
+                        choices=bt.TimeFrame.Names,
+                        required=False, action='store',
+                        help='TimeFrame for Resample/Replay - Data1')
+
+    parser.add_argument('--compression1', default=None, type=int,
+                        required=False, action='store',
+                        help='Compression for Resample/Replay - Data1')
+
     parser.add_argument('--no-takelate',
                         required=False, action='store_true',
                         help=('resample/replay, do not accept late samples '
@@ -424,6 +515,36 @@ def parse_args():
     parser.add_argument('--valid', default=None, type=int,
                         required=False, action='store',
                         help='Seconds to keep the order alive (0 means DAY)')
+
+    pgroup = parser.add_mutually_exclusive_group(required=False)
+    pgroup.add_argument('--stoptrail',
+                        required=False, action='store_true',
+                        help='Issue a stoptraillimit after buy( do not sell')
+
+    pgroup.add_argument('--traillimit',
+                        required=False, action='store_true',
+                        help='Issue a stoptrail after buying (do not sell')
+
+    pgroup.add_argument('--oca',
+                        required=False, action='store_true',
+                        help='Test oca by putting 2 orders in a group')
+
+    pgroup.add_argument('--bracket',
+                        required=False, action='store_true',
+                        help='Test bracket orders by issuing high/low sides')
+
+    pgroup = parser.add_mutually_exclusive_group(required=False)
+    pgroup.add_argument('--trailamount', default=None, type=float,
+                        required=False, action='store',
+                        help='trailamount for StopTrail order')
+
+    pgroup.add_argument('--trailpercent', default=None, type=float,
+                        required=False, action='store',
+                        help='trailpercent for StopTrail order')
+
+    parser.add_argument('--limitoffset', default=None, type=float,
+                        required=False, action='store',
+                        help='limitoffset for StopTrailLimit orders')
 
     parser.add_argument('--cancel', default=0, type=int,
                         required=False, action='store',

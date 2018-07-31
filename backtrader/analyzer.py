@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -70,6 +70,8 @@ class MetaAnalyzer(bt.MetaParams):
                         setattr(_obj, 'data%d_%s' % (d, linealias), line)
                     setattr(_obj, 'data%d_%d' % (d, l), line)
 
+        _obj.create_analysis()
+
         # Return to the normal chain
         return _obj, args, kwargs
 
@@ -92,45 +94,46 @@ class Analyzer(with_metaclass(MetaAnalyzer, object)):
 
     Automagically set member attributes:
 
-      - self.strategy (giving access to the strategy and anything accessible
-        from it)
+      - ``self.strategy`` (giving access to the *strategy* and anything
+        accessible from it)
 
-      - self.datas[x] giving access to the array of datas present in the the
-        system, which could also be accessed via the strategy reference
+      - ``self.datas[x]`` giving access to the array of data feeds present in
+        the the system, which could also be accessed via the strategy reference
 
-      - self.data, giving access to self.datas[0]
+      - ``self.data``, giving access to ``self.datas[0]``
 
-      - self.dataX -> self.datas[X]
+      - ``self.dataX`` -> ``self.datas[X]``
 
-      - self.dataX_Y -> self.datas[X].lines[Y]
+      - ``self.dataX_Y`` -> ``self.datas[X].lines[Y]``
 
-      - self.dataX_name -> self.datas[X].name
+      - ``self.dataX_name`` -> ``self.datas[X].name``
 
-      - self.data_name -> self.datas[0].name
+      - ``self.data_name`` -> ``self.datas[0].name``
 
-      - self.data_Y -> self.datas[0].lines[Y]
+      - ``self.data_Y`` -> ``self.datas[0].lines[Y]``
 
     This is not a *Lines* object, but the methods and operation follow the same
     design
 
-      - __init__ during instantiation and initial setup
+      - ``__init__`` during instantiation and initial setup
 
       - ``start`` / ``stop`` to signal the begin and end of operations
 
       - ``prenext`` / ``nextstart`` / ``next`` family of methods that follow
         the calls made to the same methods in the strategy
 
-      - ``notify_trade`` / ``notify_order`` / ``notify_cashvalue`` which
-        receive the same notifications as the equivalent methods of the
-        strategy
+      - ``notify_trade`` / ``notify_order`` / ``notify_cashvalue`` /
+        ``notify_fund`` which receive the same notifications as the equivalent
+        methods of the strategy
 
     The mode of operation is open and no pattern is preferred. As such the
     analysis can be generated with the ``next`` calls, at the end of operations
     during ``stop`` and even with a single method like ``notify_trade``
 
-    The important thing is to override ``get_analysis`` to return a  dict-like
+    The important thing is to override ``get_analysis`` to return a *dict-like*
     object containing the results of the analysis (the actual format is
     implementation dependent)
+
     '''
     csv = True
 
@@ -153,6 +156,12 @@ class Analyzer(with_metaclass(MetaAnalyzer, object)):
             child._notify_cashvalue(cash, value)
 
         self.notify_cashvalue(cash, value)
+
+    def _notify_fund(self, cash, value, fundvalue, shares):
+        for child in self._children:
+            child._notify_fund(cash, value, fundvalue, shares)
+
+        self.notify_fund(cash, value, fundvalue, shares)
 
     def _notify_trade(self, trade):
         for child in self._children:
@@ -194,6 +203,10 @@ class Analyzer(with_metaclass(MetaAnalyzer, object)):
         '''Receives the cash/value notification before each next cycle'''
         pass
 
+    def notify_fund(self, cash, value, fundvalue, shares):
+        '''Receives the current cash, value, fundvalue and fund shares'''
+        pass
+
     def notify_order(self, order):
         '''Receives order notifications before each next cycle'''
         pass
@@ -224,7 +237,7 @@ class Analyzer(with_metaclass(MetaAnalyzer, object)):
     def start(self):
         '''Invoked to indicate the start of operations, giving the analyzer
         time to setup up needed things'''
-        self.create_analysis()
+        pass
 
     def stop(self):
         '''Invoked to indicate the end of operations, giving the analyzer
@@ -240,16 +253,17 @@ class Analyzer(with_metaclass(MetaAnalyzer, object)):
         self.rets = OrderedDict()
 
     def get_analysis(self):
-        '''Returns a dict-like object with the results of the analysis
+        '''Returns a *dict-like* object with the results of the analysis
 
         The keys and format of analysis results in the dictionary is
         implementation dependent.
 
-        It is not even enforced that the result is a dict-like object, just the
-        convention
+        It is not even enforced that the result is a *dict-like object*, just
+        the convention
 
         The default implementation returns the default OrderedDict ``rets``
         created by the default ``create_analysis`` method
+
         '''
         return self.rets
 
@@ -272,37 +286,74 @@ class Analyzer(with_metaclass(MetaAnalyzer, object)):
         pp.pprint(self.get_analysis(), *args, **kwargs)
 
 
-class TimeFrameAnalyzerBase(Analyzer):
+class MetaTimeFrameAnalyzerBase(Analyzer.__class__):
+    def __new__(meta, name, bases, dct):
+        # Hack to support original method name
+        if '_on_dt_over' in dct:
+            dct['on_dt_over'] = dct.pop('_on_dt_over')  # rename method
+
+        return super(MetaTimeFrameAnalyzerBase, meta).__new__(meta, name,
+                                                              bases, dct)
+
+
+class TimeFrameAnalyzerBase(with_metaclass(MetaTimeFrameAnalyzerBase,
+                                           Analyzer)):
     params = (
         ('timeframe', None),
         ('compression', None),
+        ('_doprenext', True),
     )
 
-    def start(self):
-        super(TimeFrameAnalyzerBase, self).start()
-        self.data = self.strategy.data
+    def _start(self):
+        # Override to add specific attributes
         self.timeframe = self.p.timeframe or self.data._timeframe
         self.compression = self.p.compression or self.data._compression
 
         self.dtcmp, self.dtkey = self._get_dt_cmpkey(datetime.datetime.min)
+        super(TimeFrameAnalyzerBase, self)._start()
 
-    def next(self):
+    def _prenext(self):
+        for child in self._children:
+            child._prenext()
+
         if self._dt_over():
-            self._on_dt_over()
+            self.on_dt_over()
 
-    def _on_dt_over(self):
+        if self.p._doprenext:
+            self.prenext()
+
+    def _nextstart(self):
+        for child in self._children:
+            child._nextstart()
+
+        if self._dt_over() or not self.p._doprenext:  # exec if no prenext
+            self.on_dt_over()
+
+        self.nextstart()
+
+    def _next(self):
+        for child in self._children:
+            child._next()
+
+        if self._dt_over():
+            self.on_dt_over()
+
+        self.next()
+
+    def on_dt_over(self):
         pass
 
     def _dt_over(self):
         if self.timeframe == TimeFrame.NoTimeFrame:
             dtcmp, dtkey = MAXINT, datetime.datetime.max
         else:
-            dt = self.data.datetime.datetime()
+            # With >= 1.9.x the system datetime is in the strategy
+            dt = self.strategy.datetime.datetime()
             dtcmp, dtkey = self._get_dt_cmpkey(dt)
 
-        if dtcmp > self.dtcmp:
-            self.dtkey = dtkey
-            self.dtcmp = dtcmp
+        if self.dtcmp is None or dtcmp > self.dtcmp:
+            self.dtkey, self.dtkey1 = dtkey, self.dtkey
+            self.dtcmp, self.dtcmp1 = dtcmp, self.dtcmp
             return True
 
         return False
@@ -331,7 +382,7 @@ class TimeFrameAnalyzerBase(Analyzer):
             dtkey = datetime.datetime(dt.year, dt.month, dt.day)
 
         else:
-            dtcmp, dtkey = self._getsubday_cmpkey(dt)
+            dtcmp, dtkey = self._get_subday_cmpkey(dt)
 
         return dtcmp, dtkey
 
@@ -368,13 +419,26 @@ class TimeFrameAnalyzerBase(Analyzer):
             pm, psec = divmod(pm, 60 * 1e6)
             ps, pus = divmod(psec, 1e6)
 
+        extradays = 0
+        if ph > 23:  # went over midnight:
+            extradays = ph // 24
+            ph %= 24
+
         # moving 1 minor unit to the left to be in the boundary
-        pm -= self.timeframe == TimeFrame.Minutes
-        ps -= self.timeframe == TimeFrame.Seconds
-        pus -= self.timeframe == TimeFrame.MicroSeconds
+        # pm -= self.timeframe == TimeFrame.Minutes
+        # ps -= self.timeframe == TimeFrame.Seconds
+        # pus -= self.timeframe == TimeFrame.MicroSeconds
+
+        tadjust = datetime.timedelta(
+            minutes=self.timeframe == TimeFrame.Minutes,
+            seconds=self.timeframe == TimeFrame.Seconds,
+            microseconds=self.timeframe == TimeFrame.MicroSeconds)
 
         # Replace intraday parts with the calculated ones and update it
         dtcmp = dt.replace(hour=ph, minute=pm, second=ps, microsecond=pus)
+        dtcmp -= tadjust
+        if extradays:
+            dt += datetime.timedelta(days=extradays)
         dtkey = dtcmp
 
         return dtcmp, dtkey

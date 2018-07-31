@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,10 +22,10 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 
-from backtrader import TimeFrameAnalyzerBase
+import backtrader as bt
 
 
-class PositionsValue(TimeFrameAnalyzerBase):
+class PositionsValue(bt.Analyzer):
     '''This analyzer reports the value of the positions of the current set of
     datas
 
@@ -42,14 +42,6 @@ class PositionsValue(TimeFrameAnalyzerBase):
 
         If ``None`` then the compression of the 1st data of the system will be
         used
-
-      - ``prenext`` (default: ``True``)
-        Ideally a strategy shouldn't operate when the minimum period of the
-        indicators has not yet been met and the method ``prenext`` is being
-        called. But this is a *should* and not a prohibition.
-
-        If this parameter is ``True`` the analyzer will report positions even
-        during the ``prenext`` period
 
       - headers (default: ``False``)
 
@@ -69,27 +61,25 @@ class PositionsValue(TimeFrameAnalyzerBase):
         each return as keys
     '''
     params = (
-        ('prenext', True),
         ('headers',  False),
         ('cash', False),
     )
 
     def start(self):
-        super(PositionsValue, self).start()
         if self.p.headers:
-            headers = self.strategy.getdatanames() + ['cash'] * self.p.cash
-            self.rets['Datetime'] = headers
+            headers = [d._name or 'Data%d' % i
+                       for i, d in enumerate(self.datas)]
+            self.rets['Datetime'] = headers + ['cash'] * self.p.cash
 
-    def prenext(self):
-        if self.p.prenext():
-            self.next()
+        tf = min(d._timeframe for d in self.datas)
+        self._usedate = tf >= bt.TimeFrame.Days
 
     def next(self):
-        super(PositionsValue, self).next()  # let dtkey update
-        self._dt_over()  # to udpate dtkey if needed
-        # Updates the positions for "dtkey" (see base class) for each cycle
         pvals = [self.strategy.broker.get_value([d]) for d in self.datas]
         if self.p.cash:
             pvals.append(self.strategy.broker.get_cash())
 
-        self.rets[self.dtkey] = pvals
+        if self._usedate:
+            self.rets[self.strategy.datetime.date()] = pvals
+        else:
+            self.rets[self.strategy.datetime.datetime()] = pvals

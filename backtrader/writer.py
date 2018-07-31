@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,50 +36,50 @@ class WriterBase(with_metaclass(bt.MetaParams, object)):
 
 
 class WriterFile(WriterBase):
-    '''
-    The system wide writer class.
+    '''The system wide writer class.
 
     It can be parametrized with:
 
-      - out (default: sys.stdout): output stream to write to
+      - ``out`` (default: ``sys.stdout``): output stream to write to
 
         If a string is passed a filename with the content of the parameter will
         be used
 
-      - close_out  (default: False)
+      - ``close_out``  (default: ``False``)
 
         If ``out`` is a stream whether it has to be explicitly closed by the
         writer
 
-      - csv (default: False)
+      - ``csv`` (default: ``False``)
 
-        If a csv stream of the datas, strategies, observers and indicators has
-        to be written to the stream during execution
+        If a csv stream of the data feeds, strategies, observers and indicators
+        has to be written to the stream during execution
 
         Which objects actually go into the csv stream can be controlled with
-        the ``csv`` attribute of each object (defaults to True for ``datas```
-        and ``observers`` / False for ``indicators``)
+        the ``csv`` attribute of each object (defaults to ``True`` for ``data
+        feeds`` and ``observers`` / False for ``indicators``)
 
-      - csv_filternan (default: True) wehther "nan" values have to be purged
-        out of the csv stream (replaced by an empty field)
+      - ``csv_filternan`` (default: ``True``) whether ``nan`` values have to be
+        purged out of the csv stream (replaced by an empty field)
 
-      - csv_counter (default: True) if the writer shall keep and print out a
-        counter of the lines actually output
+      - ``csv_counter`` (default: ``True``) if the writer shall keep and print
+        out a counter of the lines actually output
 
-      - indent (default: 2) indentation spaces for each level
+      - ``indent`` (default: ``2``) indentation spaces for each level
 
-      - separators (default: ['=', '-', '+', '*', '.', '~', '"', '^', '#'])
+      - ``separators`` (default: ``['=', '-', '+', '*', '.', '~', '"', '^',
+        '#']``)
 
         Characters used for line separators across section/sub(sub)sections
 
-      - seplen (default: 79)
+      - ``seplen`` (default: ``79``)
 
         total length of a line separator including indentation
 
-      - rounding (default: None)
+      - ``rounding`` (default: ``None``)
 
-        Number of decimal places to round floats down to. With None no rounding
-        is performed
+        Number of decimal places to round floats down to. With ``None`` no
+        rounding is performed
 
     '''
     params = (
@@ -104,7 +104,7 @@ class WriterFile(WriterBase):
 
         # open file if needed
         if isinstance(self.p.out, string_types):
-            self.out = open(self.p.out, 'wb')
+            self.out = open(self.p.out, 'w')
             self.close_out = True
         else:
             self.out = self.p.out
@@ -149,7 +149,7 @@ class WriterFile(WriterBase):
 
     def writelines(self, lines):
         for l in lines:
-            self.out.write(line + '\n')
+            self.out.write(l + '\n')
 
     def writelineseparator(self, level=0):
         sepnum = level % len(self.p.separators)
@@ -196,7 +196,7 @@ class WriterFile(WriterBase):
                 self.writeline(kline)
                 self.writedict(val, level=level + 1, recurse=True)
             elif isinstance(val, (list, tuple, collections.Iterable)):
-                line = ', '.join(val)
+                line = ', '.join(map(str, val))
                 self.writeline(kline + ' ' + line)
             else:
                 kline += ' ' + str(val)

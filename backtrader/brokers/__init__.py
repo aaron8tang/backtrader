@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@ from __future__ import (absolute_import, division, print_function,
 # The modules below should/must define __all__ with the objects wishes
 # or prepend an "_" (underscore) to private classes/variables
 
+from .bbroker import BackBroker, BrokerBack
+
 try:
     from .ibbroker import IBBroker
 except ImportError:
@@ -32,4 +34,9 @@ except ImportError:
 try:
     from .vcbroker import VCBroker
 except ImportError:
+    pass  # The user may not have something installed
+
+try:
+    from .oandabroker import OandaBroker
+except ImportError as e:
     pass  # The user may not have something installed

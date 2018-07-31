@@ -27,21 +27,14 @@ import backtrader as bt
 import backtrader.feeds as btfeeds
 import backtrader.utils.flushfile
 
-from pivotpoint import PivotPoint, PivotPoint1
-
 
 class St(bt.Strategy):
     params = (('usepp1', False),
               ('plot_on_daily', False))
 
     def __init__(self):
-        if self.p.usepp1:
-            self.pp = PivotPoint1(self.data1)
-        else:
-            self.pp = PivotPoint(self.data1)
-
-        if self.p.plot_on_daily:
-            self.pp.plotinfo.plotmaster = self.data0
+        autoplot = self.p.plot_on_daily
+        self.pp = pp = bt.ind.PivotPoint(self.data1, _autoplot=autoplot)
 
     def next(self):
         txt = ','.join(
@@ -49,6 +42,7 @@ class St(bt.Strategy):
              '%04d' % len(self.data0),
              '%04d' % len(self.data1),
              self.data.datetime.date(0).isoformat(),
+             '%04d' % len(self.pp),
              '%.2f' % self.pp[0]])
 
         print(txt)
@@ -65,7 +59,7 @@ def runstrat():
     cerebro.addstrategy(St,
                         usepp1=args.usepp1,
                         plot_on_daily=args.plot_on_daily)
-    cerebro.run()
+    cerebro.run(runonce=False)
     if args.plot:
         cerebro.plot(style='bar')
 
@@ -78,9 +72,6 @@ def parse_args():
     parser.add_argument('--data', required=False,
                         default='../../datas/2005-2006-day-001.txt',
                         help='Data to be read in')
-
-    parser.add_argument('--usepp1', required=False, action='store_true',
-                        help='Have PivotPoint look 1 period backwards')
 
     parser.add_argument('--plot', required=False, action='store_true',
                         help=('Plot the result'))

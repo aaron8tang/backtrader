@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ class OscillatorMixIn(Indicator):
     '''
     MixIn class to create a subclass with another indicator. The main line of
     that indicator will be substracted from the other base class main line
-    creating and oscillator
+    creating an oscillator
 
     The usage is:
 
@@ -97,7 +97,7 @@ class Oscillator(Indicator):
             datasrc = self.data.data
             self.dataosc = self.data
 
-            self.lines[0] = datasrc - self.dataosc
+        self.lines[0] = datasrc - self.dataosc
 
 
 # Automatic creation of Oscillating Lines

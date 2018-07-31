@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import functools
 import math
 import operator
 
@@ -69,13 +70,46 @@ class OperationN(PeriodN):
             dst[i] = func(src[i - period + 1: i + 1])
 
 
+class BaseApplyN(OperationN):
+    '''
+    Base class for ApplyN and others which may take a ``func`` as a parameter
+    but want to define the lines in the indicator.
+
+    Calculates ``func`` for a given period where func is given as a parameter,
+    aka named argument or ``kwarg``
+
+    Formula:
+      - lines[0] = func(data, period)
+
+    Any extra lines defined beyond the first (index 0) are not calculated
+    '''
+    params = (('func', None),)
+
+    def __init__(self):
+        self.func = self.p.func
+        super(BaseApplyN, self).__init__()
+
+
+class ApplyN(BaseApplyN):
+    '''
+    Calculates ``func`` for a given period
+
+    Formula:
+      - line = func(data, period)
+    '''
+    lines = ('apply',)
+
+
 class Highest(OperationN):
     '''
     Calculates the highest value for the data in a given period
 
+    Uses the built-in ``max`` for the calculation
+
     Formula:
       - highest = max(data, period)
     '''
+    alias = ('MaxN',)
     lines = ('highest',)
     func = max
 
@@ -84,22 +118,86 @@ class Lowest(OperationN):
     '''
     Calculates the lowest value for the data in a given period
 
+    Uses the built-in ``min`` for the calculation
+
     Formula:
       - lowest = min(data, period)
     '''
+    alias = ('MinN',)
     lines = ('lowest',)
     func = min
+
+
+class ReduceN(OperationN):
+    '''
+    Calculates the Reduced value of the ``period`` data points applying
+    ``function``
+
+    Uses the built-in ``reduce`` for the calculation plus the ``func`` that
+    subclassess define
+
+    Formula:
+      - reduced = reduce(function(data, period)), initializer=initializer)
+
+    Notes:
+
+      - In order to mimic the python ``reduce``, this indicator takes a
+        ``function`` non-named argument as the 1st argument, unlike other
+        Indicators which take only named arguments
+    '''
+    lines = ('reduced',)
+    func = functools.reduce
+
+    def __init__(self, function, **kwargs):
+        if 'initializer' not in kwargs:
+            self.func = functools.partial(self.func, function)
+        else:
+            self.func = functools.partial(self.func, function,
+                                          initializer=kwargs['initializer'])
+
+        super(ReduceN, self).__init__()
 
 
 class SumN(OperationN):
     '''
     Calculates the Sum of the data values over a given period
 
+    Uses ``math.fsum`` for the calculation rather than the built-in ``sum`` to
+    avoid precision errors
+
     Formula:
       - sumn = sum(data, period)
     '''
     lines = ('sumn',)
     func = math.fsum
+
+
+class AnyN(OperationN):
+    '''
+    Has a value of ``True`` (stored as ``1.0`` in the lines) if *any* of the
+    values in the ``period`` evaluates to non-zero (ie: ``True``)
+
+    Uses the built-in ``any`` for the calculation
+
+    Formula:
+      - anyn = any(data, period)
+    '''
+    lines = ('anyn',)
+    func = any
+
+
+class AllN(OperationN):
+    '''
+    Has a value of ``True`` (stored as ``1.0`` in the lines) if *all* of the
+    values in the ``period`` evaluates to non-zero (ie: ``True``)
+
+    Uses the built-in ``all`` for the calculation
+
+    Formula:
+      - alln = all(data, period)
+    '''
+    lines = ('alln',)
+    func = all
 
 
 class FindFirstIndex(OperationN):
@@ -284,7 +382,11 @@ class ExponentialSmoothing(Average):
 
     def __init__(self):
         self.alpha = self.p.alpha
-        self.alpha1 = 1.0 - self.p.alpha
+        if self.alpha is None:
+            self.alpha = 2.0 / (1.0 + self.p.period)  # def EMA value
+
+        self.alpha1 = 1.0 - self.alpha
+
         super(ExponentialSmoothing, self).__init__()
 
     def nextstart(self):

@@ -91,6 +91,7 @@ setuptools.setup(
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
 
         # Operating Systems on which it runs
         'Operating System :: OS Independent',
@@ -101,7 +102,7 @@ setuptools.setup(
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
-    packages=setuptools.find_packages(exclude=['docs', 'samples']),
+    packages=setuptools.find_packages(exclude=['docs', 'docs2', 'samples']),
     # packages=['backtrader', '],
 
     # List run-time dependencies here.

@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ class StochasticFast(_StochasticBase):
       - It will go up if closing prices are close to the highs
       - It will roughly go down if closing prices are close to the lows
 
-    It shows divergence if the extremes keep on growign but closing prices
+    It shows divergence if the extremes keep on growing but closing prices
     do not in the same manner (distance to the extremes grow)
 
     Formula:
@@ -72,7 +72,7 @@ class StochasticFast(_StochasticBase):
       - ll = lowest(data.low, period)
       - knum = data.close - ll
       - kden = hh - ll
-      - k = 100 - (knum / kden)
+      - k = 100 * (knum / kden)
       - d = MovingAverage(k, period_dfast)
 
     See:

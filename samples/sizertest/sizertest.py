@@ -82,7 +82,7 @@ def runstrat(args=None):
         todate = datetime.datetime.strptime(args.todate, '%Y-%m-%d')
         dkwargs['todate'] = todate
 
-    data0 = bt.feeds.BacktraderCSVData(dataname=args.data0, **dkwargs)
+    data0 = bt.feeds.YahooFinanceCSVData(dataname=args.data0, **dkwargs)
     cerebro.adddata(data0, name='Data0')
 
     cerebro.addstrategy(CloseSMA, period=args.period)
@@ -90,7 +90,7 @@ def runstrat(args=None):
     if args.longonly:
         cerebro.addsizer(LongOnly, stake=args.stake)
     else:
-        cerebro.addsizer(FixedReverser, stake=args.stake)
+        cerebro.addsizer(bt.sizers.FixedReverser, stake=args.stake)
 
     cerebro.run()
     if args.plot:

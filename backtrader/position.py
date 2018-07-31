@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -63,8 +63,7 @@ class Position(object):
         self.upclosed = 0
         self.set(size, price)
 
-    def clone(self):
-        return copy(self)
+        self.updt = None
 
     def fix(self, size, price):
         oldsize = self.size
@@ -112,7 +111,7 @@ class Position(object):
         return abs(self.size)
 
     def __bool__(self):
-        return self.size != 0
+        return bool(self.size != 0)
 
     __nonzero__ = __bool__
 
@@ -122,7 +121,7 @@ class Position(object):
     def pseudoupdate(self, size, price):
         return Position(self.size, self.price).update(size, price)
 
-    def update(self, size, price):
+    def update(self, size, price, dt=None):
         '''
         Updates the current position and returns the updated size, price and
         units used to open/close a position
@@ -142,8 +141,8 @@ class Position(object):
                price - new position price
                    If a position is increased the new average price will be
                    returned
-                   If a position is reduced the price of the reamining size
-                   does not chance
+                   If a position is reduced the price of the remaining size
+                   does not change
                    If a position is closed the price is nullified
                    If a position is reversed the price is the price given as
                    argument
@@ -159,6 +158,8 @@ class Position(object):
             Both opened and closed carry the same sign as the "size" argument
             because they refer to a part of the "size" argument
         '''
+        self.datetime = dt  # record datetime update (datetime.datetime)
+
         self.price_orig = self.price
         oldsize = self.size
         self.size += size

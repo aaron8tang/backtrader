@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,6 +40,9 @@ from .wma import *
 from .dema import *
 from .kama import *
 from .zlema import *
+from .hma import *
+from .zlind import *
+from .dma import *
 
 # depends on moving averages
 from .deviation import *
@@ -53,14 +56,35 @@ from .crossover import *
 from .dpo import *
 from .directionalmove import *
 from .envelope import *
+from .heikinashi import *
+from .lrsi import *
 from .macd import *
 from .momentum import *
 from .oscillator import *
+from .percentchange import *
+from .percentrank import *
 from .pivotpoint import *
 from .prettygoodoscillator import *
 from .priceoscillator import *
+from .psar import *
 from .rsi import *
 from .stochastic import *
 from .trix import *
+from .tsi import *
 from .ultimateoscillator import *
 from .williams import *
+from .rmi import *
+from .awesomeoscillator import *
+from .accdecoscillator import *
+
+
+from .dv2 import *  # depends on percentrank
+
+# Depends on Momentum
+from .kst import *
+
+from .ichimoku import *
+
+from .hurst import *
+from .ols import *
+from .hadelta import *

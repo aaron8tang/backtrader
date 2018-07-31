@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,28 +29,30 @@ from .utils.py3 import range
 
 
 class TradeHistory(AutoOrderedDict):
-    '''
-    Represents the status and update event for each update a Trade has
+    '''Represents the status and update event for each update a Trade has
 
     This object is a dictionary which allows '.' notation
 
     Attributes:
-      - status (dict with '.' notation): Holds the resulting status of an
-        update event
-        - status (int): Trade status
-        - dt (float): float coded datetime
-        - barlen (int): number of bars the trade has been active
-        - size (int): current size of the Trade
-        - price (float): current price of the Trade
-        - value (float): current monetary value of the Trade
-        - pnl (float): current profit and loss of the Trade
-        - pnlcomm (float): current profit and loss minus commission
+      - ``status`` (``dict`` with '.' notation): Holds the resulting status of
+        an update event and has the following sub-attributes
 
-      - event (dict with '.' notation): Holds the event update parameters
-        - order (object): the order which initiated the update
-        - size (int): size of the update
-        - price (float): price of the update
-        - commission (float): price of the update
+        - ``status`` (``int``): Trade status
+        - ``dt`` (``float``): float coded datetime
+        - ``barlen`` (``int``): number of bars the trade has been active
+        - ``size`` (``int``): current size of the Trade
+        - ``price`` (``float``): current price of the Trade
+        - ``value`` (``float``): current monetary value of the Trade
+        - ``pnl`` (``float``): current profit and loss of the Trade
+        - ``pnlcomm`` (``float``): current profit and loss minus commission
+
+      - ``event`` (``dict`` with '.' notation): Holds the event update
+        - parameters
+
+        - ``order`` (``object``): the order which initiated the``update``
+        - ``size`` (``int``): size of the update
+        - ``price`` (``float``):price of the update
+        - ``commission`` (``float``): price of the update
     '''
 
     def __init__(self,
@@ -83,8 +85,7 @@ class TradeHistory(AutoOrderedDict):
 
 
 class Trade(object):
-    '''
-    Keeps track of the life of an trade: size, price,
+    '''Keeps track of the life of an trade: size, price,
     commission (and value?)
 
     An trade starts at 0 can be increased and reduced and can
@@ -95,40 +96,46 @@ class Trade(object):
     An trade is not meant to be reversed (no support in the logic for it)
 
     Member Attributes:
-      - ref: unique trade identifier
-      - status (int): one of Created, Open, Closed
-      - tradeid: grouping tradeid passed to orders during creation
+
+      - ``ref``: unique trade identifier
+      - ``status`` (``int``): one of Created, Open, Closed
+      - ``tradeid``: grouping tradeid passed to orders during creation
         The default in orders is 0
-      - size (int): current size of the trade
-      - price (float): current price of the trade
-      - value (float): current value of the trade
-      - commission (float): current accumulated commission
-      - pnl (float): current profit and loss of the trade (gross pnl)
-      - pnlcomm (float): current profit and loss of the trade minus
+      - ``size`` (``int``): current size of the trade
+      - ``price`` (``float``): current price of the trade
+      - ``value`` (``float``): current value of the trade
+      - ``commission`` (``float``): current accumulated commission
+      - ``pnl`` (``float``): current profit and loss of the trade (gross pnl)
+      - ``pnlcomm`` (``float``): current profit and loss of the trade minus
         commission (net pnl)
-      - isclosed (bool): records if the last update closed (set size to
+      - ``isclosed`` (``bool``): records if the last update closed (set size to
         null the trade
-      - isopen (bool): records if any update has opened the trade
-      - justopened (bool): if the trade was just opened
-      - baropen (int): bar in which this trade was opened
-      - dtopen (float): float coded datetime in which the trade was closed
+      - ``isopen`` (``bool``): records if any update has opened the trade
+      - ``justopened`` (``bool``): if the trade was just opened
+      - ``baropen`` (``int``): bar in which this trade was opened
+
+      - ``dtopen`` (``float``): float coded datetime in which the trade was
+        closed
 
         - Use method ``open_datetime`` to get a Python datetime.datetime
           or use the platform provided ``num2date`` method
 
-      - barclose (int): bar in which this trade was closed
-      - dtclose (float): float coded datetime in which the trade was closed
+      - ``barclose`` (``int``): bar in which this trade was closed
+
+      - ``dtclose`` (``float``): float coded datetime in which the trade was
+        closed
 
         - Use method ``close_datetime`` to get a Python datetime.datetime
           or use the platform provided ``num2date`` method
 
-      - barlen (int): number of bars this trade was open
-      - historyon (bool): whether history has to be recorded
-      - history (list): holds a list updated with each "update" event
+      - ``barlen`` (``int``): number of bars this trade was open
+      - ``historyon`` (``bool``): whether history has to be recorded
+      - ``history`` (``list``): holds a list updated with each "update" event
         containing the resulting status and parameters used in the update
 
         The first entry in the history is the Opening Event
         The last entry in the history is the Closing Event
+
     '''
     refbasis = itertools.count(1)
 
@@ -249,7 +256,7 @@ class Trade(object):
 
         if self.justopened:
             self.baropen = len(self.data)
-            self.dtopen = self.data.datetime[0]
+            self.dtopen = 0.0 if order.p.simulated else self.data.datetime[0]
             self.long = self.size > 0
 
         # Any size means the trade was opened
@@ -259,7 +266,7 @@ class Trade(object):
         self.barlen = len(self.data) - self.baropen
 
         # record if the position was closed (set to null)
-        self.isclosed = oldsize and not self.size
+        self.isclosed = bool(oldsize and not self.size)
 
         # record last bar for the trade
         if self.isclosed:
@@ -288,8 +295,9 @@ class Trade(object):
 
         # Update the history if needed
         if self.historyon:
+            dt0 = self.data.datetime[0] if not order.p.simulated else 0.0
             histentry = TradeHistory(
-                self.status, self.data.datetime[0], self.barlen,
+                self.status, dt0, self.barlen,
                 self.size, self.price, self.value,
                 self.pnl, self.pnlcomm, self.data._tz)
             histentry.doupdate(order, size, price, commission)

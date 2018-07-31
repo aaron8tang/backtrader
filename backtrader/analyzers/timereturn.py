@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,8 +31,8 @@ class TimeReturn(TimeFrameAnalyzerBase):
     Params:
 
       - ``timeframe`` (default: ``None``)
-        If ``None`` then the complete return over the entire backtested period
-        will be reported
+        If ``None`` the ``timeframe`` of the 1st data in the system will be
+        used
 
         Pass ``TimeFrame.NoTimeFrame`` to consider the entire dataset with no
         time constraints
@@ -70,6 +70,15 @@ class TimeReturn(TimeFrameAnalyzerBase):
 
         Else the initial close will be used.
 
+      - ``fund`` (default: ``None``)
+
+        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        be autodetected to decide if the returns are based on the total net
+        asset value or on the fund value. See ``set_fundmode`` in the broker
+        documentation
+
+        Set it to ``True`` or ``False`` for a specific behavior
+
     Methods:
 
       - get_analysis
@@ -78,26 +87,45 @@ class TimeReturn(TimeFrameAnalyzerBase):
         each return as keys
     '''
 
-    params = (('data', None),
-              ('firstopen', True))
+    params = (
+        ('data', None),
+        ('firstopen', True),
+        ('fund', None),
+    )
 
     def start(self):
         super(TimeReturn, self).start()
+        if self.p.fund is None:
+            self._fundmode = self.strategy.broker.fundmode
+        else:
+            self._fundmode = self.p.fund
+
         self._value_start = 0.0
+        self._lastvalue = None
         if self.p.data is None:
             # keep the initial portfolio value if not tracing a data
-            self._lastvalue = self.strategy.broker.getvalue()
+            if not self._fundmode:
+                self._lastvalue = self.strategy.broker.getvalue()
+            else:
+                self._lastvalue = self.strategy.broker.fundvalue
 
-    def notify_cashvalue(self, cash, value):
-        # Record current value
-        if self.p.data is None:
-            self._value = value  # the portofolio value if tracking no data
+    def notify_fund(self, cash, value, fundvalue, shares):
+        if not self._fundmode:
+            # Record current value
+            if self.p.data is None:
+                self._value = value  # the portofolio value if tracking no data
+            else:
+                self._value = self.p.data[0]  # the data value if tracking data
         else:
-            self._value = self.p.data[0]  # the data value if tracking data
+            if self.p.data is None:
+                self._value = fundvalue  # the fund value if tracking no data
+            else:
+                self._value = self.p.data[0]  # the data value if tracking data
 
-    def _on_dt_over(self):
+    def on_dt_over(self):
         # next is called in a new timeframe period
-        if self.p.data is None or len(self.p.data) > 1:
+        # if self.p.data is None or len(self.p.data) > 1:
+        if self.p.data is None or self._lastvalue is not None:
             self._value_start = self._lastvalue  # update value_start to last
 
         else:

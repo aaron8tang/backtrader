@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015,2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ class VCCommInfo(CommInfoBase):
         return abs(size) * price
 
 
-class MetaVCBroker(MetaParams):
+class MetaVCBroker(BrokerBase.__class__):
     def __init__(cls, name, bases, dct):
         '''Class has already been created ... register'''
         # Initialize the class

@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,19 +32,21 @@ from .utils import AutoOrderedDict, OrderedDict, date2num
 
 class TimeFrame(object):
     (Ticks, MicroSeconds, Seconds, Minutes,
-     Days, Weeks, Months, Years, NoTimeFrame) = range(9)
+     Days, Weeks, Months, Years, NoTimeFrame) = range(1, 10)
 
-    Names = ['Ticks', 'MicroSeconds', 'Seconds', 'Minutes',
+    Names = ['', 'Ticks', 'MicroSeconds', 'Seconds', 'Minutes',
              'Days', 'Weeks', 'Months', 'Years', 'NoTimeFrame']
 
     names = Names  # support old naming convention
 
     @classmethod
     def getname(cls, tframe, compression=None):
-        if compression == 1:
-            # return singular if compression is 1
-            return cls.Names[tframe][:-1]
-        return cls.Names[tframe]
+        tname = cls.Names[tframe]
+        if compression > 1 or tname == cls.Names[-1]:
+            return tname  # for plural or 'NoTimeFrame' return plain entry
+
+        # return singular if compression is 1
+        return cls.Names[tframe][:-1]
 
     @classmethod
     def TFrame(cls, name):
@@ -56,7 +58,7 @@ class TimeFrame(object):
 
 
 class DataSeries(LineSeries):
-    plotinfo = dict(plot=True, plotind=True)
+    plotinfo = dict(plot=True, plotind=True, plotylimited=True)
 
     _name = ''
     _compression = 1
@@ -78,16 +80,17 @@ class DataSeries(LineSeries):
         return headers
 
     def getwritervalues(self):
-        values = [self._name, len(self)]
+        l = len(self)
+        values = [self._name, l]
 
-        dtstr = self.datetime.datetime(0)
-        values.append(dtstr)
-
-        for line in self.LineOrder[1:]:
-            values.append(self.lines[line][0])
-
-        for i in range(len(self.LineOrder), self.lines.size()):
-            values.append(self.lines[i][0])
+        if l:
+            values.append(self.datetime.datetime(0))
+            for line in self.LineOrder[1:]:
+                values.append(self.lines[line][0])
+            for i in range(len(self.LineOrder), self.lines.size()):
+                values.append(self.lines[i][0])
+        else:
+            values.extend([''] * self.lines.size())  # no values yet
 
         return values
 
@@ -95,7 +98,7 @@ class DataSeries(LineSeries):
         # returns dictionary with information
         info = OrderedDict()
         info['Name'] = self._name
-        info['Timeframe'] = TimeFrame.names[self._timeframe]
+        info['Timeframe'] = TimeFrame.TName(self._timeframe)
         info['Compression'] = self._compression
 
         return info

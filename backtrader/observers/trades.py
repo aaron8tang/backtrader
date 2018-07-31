@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,11 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import uuid
+
 from .. import Observer
+from ..utils.py3 import with_metaclass
+
 from ..trade import Trade
 
 
@@ -35,18 +39,21 @@ class Trades(Observer):
 
     Params: None
     '''
+    _stclock = True
+
     lines = ('pnlplus', 'pnlminus')
 
     plotinfo = dict(plot=True, subplot=True,
                     plotname='Trades - Net Profit/Loss',
+                    plotymargin=0.10,
                     plothlines=[0.0])
 
     plotlines = dict(
         pnlplus=dict(_name='Positive',
-                     marker='o', color='blue',
+                     ls='', marker='o', color='blue',
                      markersize=8.0, fillstyle='full'),
         pnlminus=dict(_name='Negative',
-                      marker='o', color='red',
+                      ls='', marker='o', color='red',
                       markersize=8.0, fillstyle='full')
     )
 
@@ -77,7 +84,7 @@ class Trades(Observer):
 
     def next(self):
         for trade in self._owner._tradespending:
-            if trade.data is not self.data:
+            if trade.data not in self.datas:
                 continue
 
             if not trade.isclosed:
@@ -88,30 +95,60 @@ class Trades(Observer):
             else:
                 self.lines.pnlminus[0] = trade.pnl
 
-            if False:
-                self.trades_long += trade.long
-                self.trades_short += not trade.long
 
-                self.trades_plus += trade.pnl > 0
-                self.trades_minus += trade.pnl < 0
+class MetaDataTrades(Observer.__class__):
+    def donew(cls, *args, **kwargs):
+        _obj, args, kwargs = super(MetaDataTrades, cls).donew(*args, **kwargs)
 
-                self.trades_plus_gross += trade.pnlcomm > 0
-                self.trades_minus_gross += trade.pnlcomm < 0
+        # Recreate the lines dynamically
+        if _obj.params.usenames:
+            lnames = tuple(x._name for x in _obj.datas)
+        else:
+            lnames = tuple('data{}'.format(x) for x in range(len(_obj.datas)))
 
-                if trade.pnl >= 0:
-                    w = self.trades_win * self.trades + trade.pnl
-                    self.trades_win = w / (self.trades + 1)
-                    self.trades_win_max = max(self.trades_win_max, trade.pnl)
-                    self.trades_win_min = min(self.trades_win_min, trade.pnl)
-                elif trade.pnl < 0:
-                    l = self.trades_loss * self.trades + trade.pnl
-                    self.trades_loss = l / (self.trades + 1)
-                    self.trades_loss_max = max(self.trades_loss_max, trade.pnl)
-                    self.trades_loss_min = min(self.trades_loss_min, trade.pnl)
+        # Generate a new lines class
+        linescls = cls.lines._derive(uuid.uuid4().hex, lnames, 0, ())
 
-                l = self.trades_length * self.trades + trade.barlen
-                self.trades_length = l / (self.trades + 1)
-                self.trades_length_max = max(self.trades_length_max, trade.barlen)
-                self.trades_length_min = min(self.trades_length_min, trade.barlen)
+        # Instantiate lines
+        _obj.lines = linescls()
 
-                self.trades += 1
+        # Generate plotlines info
+        markers = ['o', 'v', '^', '<', '>', '1', '2', '3', '4', '8', 's', 'p',
+                   '*', 'h', 'H', '+', 'x', 'D', 'd']
+
+        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm',
+                  'y', 'k', 'b', 'g', 'r', 'c', 'm']
+
+        basedict = dict(ls='', markersize=8.0, fillstyle='full')
+
+        plines = dict()
+        for lname, marker, color in zip(lnames, markers, colors):
+            plines[lname] = d = basedict.copy()
+            d.update(marker=marker, color=color)
+
+        plotlines = cls.plotlines._derive(
+            uuid.uuid4().hex, plines, [], recurse=True)
+        _obj.plotlines = plotlines()
+
+        return _obj, args, kwargs  # return the instantiated object and args
+
+
+class DataTrades(with_metaclass(MetaDataTrades, Observer)):
+    _stclock = True
+
+    params = (('usenames', True),)
+
+    plotinfo = dict(plot=True, subplot=True, plothlines=[0.0],
+                    plotymargin=0.10)
+
+    plotlines = dict()
+
+    def next(self):
+        for trade in self._owner._tradespending:
+            if trade.data not in self.datas:
+                continue
+
+            if not trade.isclosed:
+                continue
+
+            self.lines[trade.data._id - 1][0] = trade.pnl

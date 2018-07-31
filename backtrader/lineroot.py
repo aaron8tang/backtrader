@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -85,7 +85,7 @@ class LineRoot(with_metaclass(MetaLineRoot, object)):
             return self._operation_stage1(
                 other, operation, r=r, intify=intify)
 
-        return self._operation_stage2(other, operation)
+        return self._operation_stage2(other, operation, r=r)
 
     def _operationown(self, operation):
         if self._opstage == 1:
@@ -200,7 +200,7 @@ class LineRoot(with_metaclass(MetaLineRoot, object)):
 
         return self._makeoperation(other, operation, r, self)
 
-    def _operation_stage2(self, other, operation):
+    def _operation_stage2(self, other, operation, r=False):
         '''
         Rich Comparison operators. Scans other and returns either an
         operation with other directly or a subitem from other
@@ -209,6 +209,9 @@ class LineRoot(with_metaclass(MetaLineRoot, object)):
             other = other[0]
 
         # operation(float, other) ... expecting other to be a float
+        if r:
+            return operation(other, self[0])
+
         return operation(self[0], other)
 
     def _operationown_stage2(self, operation):
@@ -232,6 +235,18 @@ class LineRoot(with_metaclass(MetaLineRoot, object)):
     def __rmul__(self, other):
         return self._roperation(other, operator.__mul__)
 
+    def __div__(self, other):
+        return self._operation(other, operator.__div__)
+
+    def __rdiv__(self, other):
+        return self._roperation(other, operator.__div__)
+
+    def __floordiv__(self, other):
+        return self._operation(other, operator.__floordiv__)
+
+    def __rfloordiv__(self, other):
+        return self._roperation(other, operator.__floordiv__)
+
     def __truediv__(self, other):
         return self._operation(other, operator.__truediv__)
 
@@ -246,6 +261,9 @@ class LineRoot(with_metaclass(MetaLineRoot, object)):
 
     def __abs__(self):
         return self._operationown(operator.__abs__)
+
+    def __neg__(self):
+        return self._operationown(operator.__neg__)
 
     def __lt__(self, other):
         return self._operation(other, operator.__lt__)
@@ -295,7 +313,7 @@ class LineMultiple(LineRoot):
 
     def addminperiod(self, minperiod):
         '''
-        The passed minperiod is fed to the lins
+        The passed minperiod is fed to the lines
         '''
         # pass it down to the lines
         for line in self.lines:
@@ -303,7 +321,7 @@ class LineMultiple(LineRoot):
 
     def incminperiod(self, minperiod):
         '''
-        The passed minperiod is fed to the lins
+        The passed minperiod is fed to the lines
         '''
         # pass it down to the lines
         for line in self.lines:

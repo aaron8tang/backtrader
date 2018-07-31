@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,6 +32,11 @@ class StandardDeviation(Indicator):
       - If 2 datas are provided as parameters, the 2nd is considered to be the
         mean of the first
 
+      - ``safepow`` (default: False) If this parameter is True, the standard
+        deviation will be calculated as pow(abs(meansq - sqmean), 0.5) to safe
+        guard for possible negative results of ``meansq - sqmean`` caused by
+        the floating point representation.
+
     Formula:
       - meansquared = SimpleMovingAverage(pow(data, 2), period)
       - squaredmean = pow(SimpleMovingAverage(data, period), 2)
@@ -43,7 +48,7 @@ class StandardDeviation(Indicator):
     alias = ('StdDev',)
 
     lines = ('stddev',)
-    params = (('period', 20), ('movav', MovAv.Simple),)
+    params = (('period', 20), ('movav', MovAv.Simple), ('safepow', True),)
 
     def _plotlabel(self):
         plabels = [self.p.period]
@@ -58,7 +63,11 @@ class StandardDeviation(Indicator):
 
         meansq = self.p.movav(pow(self.data, 2), period=self.p.period)
         sqmean = pow(mean, 2)
-        self.lines.stddev = pow(meansq - sqmean, 0.5)
+
+        if self.p.safepow:
+            self.lines.stddev = pow(abs(meansq - sqmean), 0.5)
+        else:
+            self.lines.stddev = pow(meansq - sqmean, 0.5)
 
 
 class MeanDeviation(Indicator):

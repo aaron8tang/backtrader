@@ -49,6 +49,7 @@ coverage.xml
 
 # Sphinx documentation
 docs/_build/
+docs2/_build/
 
 # PyBuilder
 target/
@@ -60,3 +61,9 @@ target/
 *#
 *.swp
 *.swo
+
+.ipynb*
+samples2/
+
+# Ignore test files in Datas
+datas/*.py

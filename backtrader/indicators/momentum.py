@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -61,7 +61,6 @@ class MomentumOscillator(Indicator):
     lines = ('momosc',)
 
     # Accepted parameters (and defaults) -
-    # MovAvg also parameter to allow experimentation
     params = (('period', 12),
               ('band', 100.0))
 
@@ -93,10 +92,35 @@ class RateOfChange(Indicator):
     lines = ('roc',)
 
     # Accepted parameters (and defaults) -
-    # MovAvg also parameter to allow experimentation
     params = (('period', 12),)
 
     def __init__(self):
         dperiod = self.data(-self.p.period)
         self.l.roc = (self.data - dperiod) / dperiod
         super(RateOfChange, self).__init__()
+
+
+class RateOfChange100(Indicator):
+    '''
+    Measures the ratio of change in prices over a period with base 100
+
+    This is for example how ROC is defined in stockcharts
+
+    Formula:
+      - roc = 100 * (data - data_period) / data_period
+
+    See:
+      - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:rate_of_change_roc_and_momentum
+
+    '''
+    alias = ('ROC100',)
+
+    # Named output lines
+    lines = ('roc100',)
+
+    # Accepted parameters (and defaults)
+    params = (('period', 12),)
+
+    def __init__(self):
+        self.l.roc100 = 100.0 * ROC(self.data, period=self.p.period)
+        super(RateOfChange100, self).__init__()

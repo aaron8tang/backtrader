@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,26 +21,23 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from backtrader import TimeFrameAnalyzerBase
+import backtrader as bt
 
 
-class GrossLeverage(TimeFrameAnalyzerBase):
+class GrossLeverage(bt.Analyzer):
     '''This analyzer calculates the Gross Leverage of the current strategy
     on a timeframe basis
 
     Params:
 
-      - timeframe (default: ``None``)
-        If ``None`` then the timeframe of the 1st data of the system will be
-        used
+      - ``fund`` (default: ``None``)
 
-      - compression (default: ``None``)
+        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        be autodetected to decide if the returns are based on the total net
+        asset value or on the fund value. See ``set_fundmode`` in the broker
+        documentation
 
-        Only used for sub-day timeframes to for example work on an hourly
-        timeframe by specifying "TimeFrame.Minutes" and 60 as compression
-
-        If ``None`` then the compression of the 1st data of the system will be
-        used
+        Set it to ``True`` or ``False`` for a specific behavior
 
     Methods:
 
@@ -49,12 +46,26 @@ class GrossLeverage(TimeFrameAnalyzerBase):
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
     '''
-    def notify_cashvalue(self, cash, value):
+
+    params = (
+        ('fund', None),
+    )
+
+    def start(self):
+        if self.p.fund is None:
+            self._fundmode = self.strategy.broker.fundmode
+        else:
+            self._fundmode = self.p.fund
+
+    def notify_fund(self, cash, value, fundvalue, shares):
         self._cash = cash
-        self._value = value
+        if not self._fundmode:
+            self._value = value
+        else:
+            self._value = fundvalue
 
     def next(self):
-        super(GrossLeverage, self).next()  # let dtkey update
         # Updates the leverage for "dtkey" (see base class) for each cycle
         # 0.0 if 100% in cash, 1.0 if no short selling and fully invested
-        self.rets[self.dtkey] = (self._value - self._cash) / self._value
+        lev = (self._value - self._cash) / self._value
+        self.rets[self.data0.datetime.datetime()] = lev

@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -66,6 +66,8 @@ else:
         _refname = '_taindcol'
         _taindcol = dict()
 
+        _KNOWN_UNSTABLE = ['SAR']
+
         def dopostinit(cls, _obj, *args, **kwargs):
             # Go to parent
             res = super(_MetaTALibIndicator, cls).dopostinit(_obj,
@@ -78,6 +80,10 @@ else:
             _obj.updateminperiod(lookback)
             if _obj._unstable:
                 _obj._lookback = 0
+
+            elif cls.__name__ in cls._KNOWN_UNSTABLE:
+                _obj._lookback = 0
+
             cerebro = bt.metabase.findowner(_obj, bt.Cerebro)
             tafuncinfo = _obj._tabstract.info
             _obj._tafunc = getattr(talib, tafuncinfo['name'], None)
@@ -165,7 +171,7 @@ else:
 
             # Prepare dictionary for subclassing
             clsdict = {
-                '__module__': clsmodule,
+                '__module__': cls.__module__,
                 '__doc__': str(_tabstract),
                 '_tabstract': _tabstract,  # keep ref for lookback calcs
                 '_iscandle': iscandle,

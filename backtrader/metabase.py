@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,7 +25,8 @@ from collections import OrderedDict
 import itertools
 import sys
 
-from .utils.py3 import zip
+import backtrader as bt
+from .utils.py3 import zip, string_types, with_metaclass
 
 
 def findbases(kls, topclass):
@@ -118,10 +119,21 @@ class AutoInfoClass(object):
         info2add = obasesinfo.copy()
         info2add.update(info)
 
-        # str for Python 2/3 compatibility
-        newcls = type(str(cls.__name__ + '_' + name), (cls,), {})
         clsmodule = sys.modules[cls.__module__]
-        setattr(clsmodule, str(cls.__name__ + '_' + name), newcls)
+        newclsname = str(cls.__name__ + '_' + name)  # str - Python 2/3 compat
+
+        # This loop makes sure that if the name has already been defined, a new
+        # unique name is found. A collision example is in the plotlines names
+        # definitions of bt.indicators.MACD and bt.talib.MACD. Both end up
+        # definining a MACD_pl_macd and this makes it impossible for the pickle
+        # module to send results over a multiprocessing channel
+        namecounter = 1
+        while hasattr(clsmodule, newclsname):
+            newclsname += str(namecounter)
+            namecounter += 1
+
+        newcls = type(newclsname, (cls,), {})
+        setattr(clsmodule, newclsname, newcls)
 
         setattr(newcls, '_getpairsbase',
                 classmethod(lambda cls: baseinfo.copy()))
@@ -194,14 +206,34 @@ class MetaParams(MetaBase):
         # (and hence "repetition")
         newparams = dct.pop('params', ())
 
+        packs = 'packages'
+        newpackages = tuple(dct.pop(packs, ()))  # remove before creation
+
+        fpacks = 'frompackages'
+        fnewpackages = tuple(dct.pop(fpacks, ()))  # remove before creation
+
         # Create the new class - this pulls predefined "params"
         cls = super(MetaParams, meta).__new__(meta, name, bases, dct)
 
         # Pulls the param class out of it - default is the empty class
         params = getattr(cls, 'params', AutoInfoClass)
 
+        # Pulls the packages class out of it - default is the empty class
+        packages = tuple(getattr(cls, packs, ()))
+        fpackages = tuple(getattr(cls, fpacks, ()))
+
         # get extra (to the right) base classes which have a param attribute
         morebasesparams = [x.params for x in bases[1:] if hasattr(x, 'params')]
+
+        # Get extra packages, add them to the packages and put all in the class
+        for y in [x.packages for x in bases[1:] if hasattr(x, packs)]:
+            packages += tuple(y)
+
+        for y in [x.frompackages for x in bases[1:] if hasattr(x, fpacks)]:
+            fpackages += tuple(y)
+
+        cls.packages = packages + newpackages
+        cls.frompackages = fpackages + fnewpackages
 
         # Subclass and store the newly derived params class
         cls.params = params._derive(name, newparams, morebasesparams)
@@ -209,6 +241,42 @@ class MetaParams(MetaBase):
         return cls
 
     def donew(cls, *args, **kwargs):
+        clsmod = sys.modules[cls.__module__]
+        # import specified packages
+        for p in cls.packages:
+            if isinstance(p, (tuple, list)):
+                p, palias = p
+            else:
+                palias = p
+
+            pmod = __import__(p)
+
+            plevels = p.split('.')
+            if p == palias and len(plevels) > 1:  # 'os.path' not aliased
+                setattr(clsmod, pmod.__name__, pmod)  # set 'os' in module
+
+            else:  # aliased and/or dots
+                for plevel in plevels[1:]:  # recurse down the mod
+                    pmod = getattr(pmod, plevel)
+
+                setattr(clsmod, palias, pmod)
+
+        # import from specified packages - the 2nd part is a string or iterable
+        for p, frompackage in cls.frompackages:
+            if isinstance(frompackage, string_types):
+                frompackage = (frompackage,)  # make it a tuple
+
+            for fp in frompackage:
+                if isinstance(fp, (tuple, list)):
+                    fp, falias = fp
+                else:
+                    fp, falias = fp, fp  # assumed is string
+
+                # complain "not string" without fp (unicode vs bytes)
+                pmod = __import__(p, fromlist=[str(fp)])
+                pattr = getattr(pmod, fp)
+                setattr(clsmod, falias, pattr)
+
         # Create params and set the values from the kwargs
         params = cls.params()
         for pname, pdef in cls.params._getitems():
@@ -221,6 +289,10 @@ class MetaParams(MetaBase):
 
         # Parameter values have now been set before __init__
         return _obj, args, kwargs
+
+
+class ParamsBase(with_metaclass(MetaParams, object)):
+    pass  # stub to allow easy subclassing without metaclasses
 
 
 class ItemCollection(object):

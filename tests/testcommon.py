@@ -66,6 +66,7 @@ def runtest(datas,
             optimize=False,
             maxcpus=1,
             writer=None,
+            analyzer=None,
             **kwargs):
 
     runonces = [True, False] if runonce is None else [runonce]
@@ -82,7 +83,8 @@ def runtest(datas,
                                      exactbars=exbar)
 
                 if kwargs.get('main', False):
-                    print('prload {} / ronce {}'.format(prload, ronce))
+                    print('prload {} / ronce {} exbar {}'.format(
+                        prload, ronce, exbar))
 
                 if isinstance(datas, bt.LineSeries):
                     datas = [datas]
@@ -96,6 +98,12 @@ def runtest(datas,
                         wr = writer[0]
                         wrkwargs = writer[1]
                         cerebro.addwriter(wr, **wrkwargs)
+
+                    if analyzer:
+                        al = analyzer[0]
+                        alkwargs = analyzer[1]
+                        cerebro.addanalyzer(al, **alkwargs)
+
                 else:
                     cerebro.optstrategy(strategy, **kwargs)
 
@@ -192,7 +200,7 @@ class TestStrategy(bt.Strategy):
 
                 print(outtxt)
 
-            print('vs')
+            print('vs expected')
 
             for chkval in self.p.chkvals:
                 print(chkval)
@@ -205,4 +213,10 @@ class TestStrategy(bt.Strategy):
             for lidx, linevals in enumerate(self.p.chkvals):
                 for i, chkpt in enumerate(chkpts):
                     chkval = '%f' % self.ind.lines[lidx][chkpt]
-                    assert chkval == linevals[i]
+                    if not isinstance(linevals[i], tuple):
+                        assert chkval == linevals[i]
+                    else:
+                        try:
+                            assert chkval == linevals[i][0]
+                        except AssertionError:
+                            assert chkval == linevals[i][1]

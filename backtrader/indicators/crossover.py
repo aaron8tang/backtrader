@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@ from . import Indicator, And
 
 
 class _CrossBase(Indicator):
+    _mindatas = 2
+
     lines = ('cross',)
 
     plotinfo = dict(plotymargin=0.05, plotyhlines=[0.0, 1.0])
@@ -89,9 +91,11 @@ class CrossOver(Indicator):
       - downcross = data0(-1) > data1(-1) and data0(0) < data1(0)
       - crossover = upcross - downcross
     '''
+    _mindatas = 2
+
     lines = ('crossover',)
 
-    plotinfo = dict(plot=False, plotymargin=0.05, plotyhlines=[-1.0, 1.0])
+    plotinfo = dict(plotymargin=0.05, plotyhlines=[-1.0, 1.0])
 
     def __init__(self):
         upcross = CrossUp(self.data, self.data1)

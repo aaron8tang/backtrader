@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -71,12 +71,15 @@ class SQN(Analyzer):
             self.count += 1
 
     def stop(self):
-        pnl_av = average(self.pnl)
-        pnl_stddev = standarddev(self.pnl)
-
-        trades_sqr = math.sqrt(len(self.pnl))
-
-        sqn = trades_sqr * pnl_av / pnl_stddev
+        if self.count > 1:
+            pnl_av = average(self.pnl)
+            pnl_stddev = standarddev(self.pnl)
+            try:
+                sqn = math.sqrt(len(self.pnl)) * pnl_av / pnl_stddev
+            except ZeroDivisionError:
+                sqn = None
+        else:
+            sqn = 0
 
         self.rets.sqn = sqn
         self.rets.trades = self.count

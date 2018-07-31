@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015, 2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,8 +27,11 @@ from .btcsv import *
 from .vchartcsv import *
 from .vchart import *
 from .yahoo import *
+from .quandl import *
 from .sierrachart import *
+from .mt4csv import *
 from .pandafeed import *
+from .influxfeed import *
 try:
     from .ibdata import *
 except ImportError:
@@ -38,3 +41,14 @@ try:
     from .vcdata import *
 except ImportError:
     pass  # The user may not have something installed
+
+try:
+    from .oanda import OandaData
+except ImportError:
+    pass  # The user may not have something installed
+
+
+from .vchartfile import VChartFile
+
+from .rollover import RollOver
+from .chainer import Chainer

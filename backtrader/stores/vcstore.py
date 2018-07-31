@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
-# Copyright (C) 2015,2016 Daniel Rodriguez
+# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -303,21 +303,20 @@ class VCStore(with_metaclass(MetaSingleton, object)):
     def __init__(self):
         self._connected = False  # modules/objects created
 
-        if not self._load_comtypes():
-            msg = self._RT_TYPELIB, txt
-            txt = 'Failed to import comtypes'
-            msg = self._RT_COMTYPES, txt
-            self.put_notification(msg, *msg)
-            return
+        self.notifs = collections.deque()  # hold notifications to deliver
 
         self.t_vcconn = None  # control connection status
-
-        self.notifs = collections.deque()  # hold notifications to deliver
 
         # hold deques to market data symbols
         self._dqs = collections.deque()
         self._qdatas = dict()
         self._tftable = dict()
+
+        if not self._load_comtypes():
+            txt = 'Failed to import comtypes'
+            msg = self._RT_COMTYPES, txt
+            self.put_notification(msg, *msg)
+            return
 
         vctypelibs = self.find_vchart()
         # Try to load the modules

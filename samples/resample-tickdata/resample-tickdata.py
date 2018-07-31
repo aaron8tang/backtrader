@@ -42,6 +42,7 @@ def runstrat():
     data = btfeeds.GenericCSVData(
         dataname=datapath,
         dtformat='%Y-%m-%dT%H:%M:%S.%f',
+        timeframe=bt.TimeFrame.Ticks,
     )
 
     # Handy dictionary for the argument timeframe conversion
@@ -55,7 +56,7 @@ def runstrat():
         monthly=bt.TimeFrame.Months)
 
     # Resample the data
-    data = cerebro.resampledata(
+    cerebro.resampledata(
         data,
         timeframe=tframes[args.timeframe],
         compression=args.compression,
