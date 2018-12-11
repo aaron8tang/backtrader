@@ -27,9 +27,8 @@ backtrader
 
 **Yahoo API Note**:
 
-  Don't use it. Yahoo removed the original API and the alternative methods are
-  prone to failure due to the glitches introduced by Yahoo (column swapping and
-  others)
+  [2018-11-16] After some testing it would seem that data downloads can be
+  again relied upon over the web interface (or API ``v7``)
 
 **Tickets**
 
@@ -54,10 +53,7 @@ different ways. Use the docs (and examples) Luke!
   cerebro = bt.Cerebro()
   cerebro.addstrategy(SmaCross)
 
-  # **NOTE**: Read the note about the Yahoo API above. This sample is kept for
-  # historical reasons. Use any other data feed.
-
-  data0 = bt.feeds.YahooFinanceData(dataname='YHOO', fromdate=datetime(2011, 1, 1),
+  data0 = bt.feeds.YahooFinanceData(dataname='MSFT', fromdate=datetime(2011, 1, 1),
                                     todate=datetime(2012, 12, 31))
   cerebro.adddata(data0)
 
@@ -93,7 +89,7 @@ Live Trading and backtesting platform written in Python.
   - *TA-Lib* indicator support (needs python *ta-lib* / check the docs)
   - Easy development of custom indicators
   - Analyzers (for example: TimeReturn, Sharpe Ratio, SQN) and ``pyfolio``
-    integration
+    integration (**deprecated**)
   - Flexible definition of commission schemes
   - Integrated broker simulation with *Market*, *Close*, *Limit*, *Stop*,
     *StopLimit*, *StopTrail*, *StopTrailLimit*and *OCO* orders, bracket order,
@@ -124,7 +120,7 @@ Python 2/3 Support
 ==================
 
   - Python ``2.7``
-  - Python ``3.2`` / ``3.3``/ ``3.4`` / ``3.5`` / ``3.6``
+  - Python ``3.2`` / ``3.3``/ ``3.4`` / ``3.5`` / ``3.6`` / ``3.7``
 
   - It also works with ``pypy`` and ``pypy3`` (no plotting - ``matplotlib`` is
     not supported under *pypy*)
@@ -172,7 +168,7 @@ Version numbering
 X.Y.Z.I
 
   - X: Major version number. Should stay stable unless something big is changed
-    like an overhaul to use numpy
+    like an overhaul to use ``numpy``
   - Y: Minor version number. To be changed upon adding a complete new feature or
     (god forbids) an incompatible API change.
   - Z: Revision version number. To be changed for documentation updates, small
